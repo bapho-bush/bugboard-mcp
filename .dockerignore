@@ -1,0 +1,11 @@
+.agents
+.codex
+.git
+.vscode
+plugins
+public
+research
+scripts
+target
+.env*
+*.env

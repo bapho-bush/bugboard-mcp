@@ -1,0 +1,14 @@
+# Rust build artifacts
+/target/
+
+# Local session files
+.env*
+*.env
+
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/

@@ -1,0 +1,69 @@
+[tools]
+rust = "1.96.0"
+"cargo:cargo-deny" = "0.19.9"
+
+[env]
+CARGO_INCREMENTAL = "0"
+CARGO_TARGET_DIR = "{% if os() == \"windows\" %}{{ env.LOCALAPPDATA }}{% else %}{{ xdg_cache_home }}{% endif %}/bugboard-mcp/target"
+
+[tasks.fmt]
+description = "Check Rust formatting"
+run = "cargo fmt --check"
+
+[tasks.check]
+description = "Type-check the project"
+run = "cargo check"
+
+[tasks.clippy]
+description = "Run Clippy with warnings denied"
+run = "cargo clippy -- -D warnings"
+
+[tasks.test]
+description = "Run tests"
+run = "cargo test"
+
+[tasks.build]
+description = "Build the project"
+run = "cargo build"
+
+[tasks.deny]
+description = "Check dependency advisories, licenses, bans, and sources"
+run = "cargo deny check -A license-not-encountered"
+
+[tasks.run]
+description = "Run the Streamable HTTP MCP server"
+run = "cargo run"
+
+[tasks."run:stdio"]
+description = "Run the stdio MCP server"
+run = "cargo run -- --stdio"
+
+[tasks."run:http"]
+description = "Run the Streamable HTTP MCP server"
+run = "cargo run -- --http"
+
+[tasks."docker:build"]
+description = "Build the local stdio Docker image"
+run = "docker build --tag bugboard-mcp:local ."
+
+[tasks."docker:smoke"]
+description = "Check that the local Docker image starts"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/docker-smoke.ps1"
+
+[tasks."docker:publish"]
+description = "Publish the local Docker image to GHCR"
+run = "sh scripts/docker-publish.sh"
+
+[tasks.verify]
+description = "Run the public quality gate"
+run = [
+  "cargo fmt --check",
+  "cargo check",
+  "cargo check --examples",
+  "cargo clippy -- -D warnings",
+  "cargo test",
+  "cargo test --examples",
+  "cargo build",
+  "cargo package --manifest-path crates/e1c-element-rpc/Cargo.toml --allow-dirty",
+  "cargo deny check -A license-not-encountered",
+]
