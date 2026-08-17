@@ -38,6 +38,14 @@ mod tests {
     }
 
     #[test]
+    fn session_config_accepts_a_direct_cookie_value() {
+        let config = SessionConfig::from_cookie(Some("session=from-docker-env")).unwrap();
+
+        assert_eq!(config.cookie, "session=from-docker-env");
+        assert!(SessionConfig::from_cookie(Some("  ")).is_err());
+    }
+
+    #[test]
     fn server_registers_bugboard_tools() {
         let server = BugboardServer::new();
         let names = server

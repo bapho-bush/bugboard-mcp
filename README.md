@@ -28,20 +28,28 @@ Install the pinned toolchain:
 mise install
 ```
 
-Create an env-file outside the repository:
+Set `BUGBOARD_COOKIE` directly, or create an env-file outside the repository:
 
 ```text
 BUGBOARD_COOKIE=...
 ```
 
-Start the server:
+Start the server with a direct value:
+
+```powershell
+$env:BUGBOARD_COOKIE="..."
+mise run run
+```
+
+Or point it to an env-file:
 
 ```powershell
 $env:BUGBOARD_SESSION_ENV="C:\path\outside\repo\bugboard.env"
 mise run run
 ```
 
-The server loads only `BUGBOARD_COOKIE` from this file. It obtains the
+The server uses a direct `BUGBOARD_COOKIE` in preference to the env-file. It
+loads only `BUGBOARD_COOKIE` from that file. It obtains the
 deployment-specific `X-G5-Version` from the authenticated Bugboard shell and
 keeps it in memory. Replace an expired cookie and restart the server. A read
 may retry once after a Bugboard deployment change; a write never retries on its
@@ -94,7 +102,15 @@ GitHub token that has `read:packages`:
 docker pull ghcr.io/bapho-bush/bugboard-mcp:latest
 ```
 
-Mount the external session file read-only when starting the container:
+Pass the cookie directly to the container:
+
+```powershell
+docker run --rm -i `
+  -e "BUGBOARD_COOKIE=$env:BUGBOARD_COOKIE" `
+  ghcr.io/bapho-bush/bugboard-mcp:latest
+```
+
+An external session file remains supported when mounting it is preferable:
 
 ```powershell
 docker run --rm -i `

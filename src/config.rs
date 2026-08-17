@@ -18,6 +18,10 @@ impl std::fmt::Debug for SessionConfig {
 
 impl SessionConfig {
     pub(crate) fn from_env() -> Result<Self, ConfigError> {
+        if std::env::var_os("BUGBOARD_COOKIE").is_some() {
+            return Self::from_cookie(std::env::var("BUGBOARD_COOKIE").ok().as_deref());
+        }
+
         let env_file = std::env::var_os("BUGBOARD_SESSION_ENV")
             .map(PathBuf::from)
             .ok_or(ConfigError::MissingEnvFilePath)?;
@@ -31,9 +35,11 @@ impl SessionConfig {
     }
 
     pub(crate) fn from_values(values: &HashMap<String, String>) -> Result<Self, ConfigError> {
-        let cookie = values
-            .get("BUGBOARD_COOKIE")
-            .map(String::as_str)
+        Self::from_cookie(values.get("BUGBOARD_COOKIE").map(String::as_str))
+    }
+
+    pub(crate) fn from_cookie(cookie: Option<&str>) -> Result<Self, ConfigError> {
+        let cookie = cookie
             .filter(|value| !value.trim().is_empty())
             .ok_or(ConfigError::MissingCookie)?
             .to_owned();
@@ -57,12 +63,12 @@ impl From<ConfigError> for ToolFailure {
         match error {
             ConfigError::MissingEnvFilePath => ToolFailure::new(
                 "config_missing",
-                "Set BUGBOARD_SESSION_ENV to an env-file outside the repository.",
-                json!({"required_env": "BUGBOARD_SESSION_ENV"}),
+                "Set BUGBOARD_COOKIE or BUGBOARD_SESSION_ENV.",
+                json!({"required_env": ["BUGBOARD_COOKIE", "BUGBOARD_SESSION_ENV"]}),
             ),
             ConfigError::MissingCookie => ToolFailure::new(
                 "config_missing",
-                "Session env-file must contain BUGBOARD_COOKIE.",
+                "BUGBOARD_COOKIE must be non-empty.",
                 json!({"required_key": "BUGBOARD_COOKIE"}),
             ),
             ConfigError::ReadEnvFile { path, source } => ToolFailure::new(

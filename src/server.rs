@@ -313,7 +313,7 @@ impl ServerHandler for BugboardServer {
                     .with_title("1C Bugboard MCP Server"),
             )
             .with_instructions(
-                "1C bugboard tools with verified idempotent writes. Session material is read from BUGBOARD_SESSION_ENV.",
+                "1C bugboard tools with verified idempotent writes. Set BUGBOARD_COOKIE directly or use BUGBOARD_SESSION_ENV.",
             )
     }
 }
