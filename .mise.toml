@@ -1,5 +1,5 @@
 [tools]
-rust = "1.96.0"
+rust = { version = "1.96.0", components = ["rustfmt", "clippy", "rust-src"] }
 "cargo:cargo-deny" = "0.19.9"
 
 [env]
