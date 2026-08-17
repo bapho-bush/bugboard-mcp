@@ -56,8 +56,7 @@ may retry once after a Bugboard deployment change; a write never retries on its
 own.
 
 Use `mise run run:stdio` to use stdio. `BUGBOARD_MCP_BIND` can change the
-loopback address or port. Non-loopback addresses are rejected because the MCP
-endpoint has no separate client authentication.
+address or port.
 
 ## Tool inputs
 
@@ -87,8 +86,9 @@ Windows. The wire-level crate is documented in
 
 ## Docker
 
-The image runs the stdio transport by default, so it does not expose an
-unauthenticated network port. Build it with:
+The image runs Streamable HTTP by default on port 8000. Publish it only to the
+host loopback interface, because the MCP endpoint has no separate client
+authentication. Build it with:
 
 ```sh
 mise run docker:build
@@ -102,18 +102,34 @@ GitHub token that has `read:packages`:
 docker pull ghcr.io/bapho-bush/bugboard-mcp:latest
 ```
 
-Pass the cookie directly to the container:
+Run HTTP MCP for Codex:
 
 ```powershell
-docker run --rm -i `
+docker run --rm -d --name bugboard-mcp `
+  -p 127.0.0.1:18080:8000 `
   -e "BUGBOARD_COOKIE=$env:BUGBOARD_COOKIE" `
   ghcr.io/bapho-bush/bugboard-mcp:latest
 ```
 
-An external session file remains supported when mounting it is preferable:
+Configure Codex with `url = "http://127.0.0.1:18080/mcp"`. Do not use
+`-p 18080:8000`, which publishes the unauthenticated MCP endpoint beyond the
+local machine.
+
+Run stdio instead by overriding the transport:
 
 ```powershell
 docker run --rm -i `
+  -e "BUGBOARD_MCP_TRANSPORT=stdio" `
+  -e "BUGBOARD_COOKIE=$env:BUGBOARD_COOKIE" `
+  ghcr.io/bapho-bush/bugboard-mcp:latest
+```
+
+An external session file remains supported for either transport when mounting
+it is preferable:
+
+```powershell
+docker run --rm -d --name bugboard-mcp `
+  -p 127.0.0.1:18080:8000 `
   --mount "type=bind,src=C:\path\outside\repo\bugboard.env,dst=/run/secrets/bugboard.env,readonly" `
   -e BUGBOARD_SESSION_ENV=/run/secrets/bugboard.env `
   ghcr.io/bapho-bush/bugboard-mcp:latest
@@ -122,8 +138,8 @@ docker run --rm -i `
 ## Security
 
 Keep cookies, tokens, browser profiles, and authenticated request bodies out
-of the repository. The HTTP transport accepts only loopback binds. Browser
-requests with an `Origin` header must use the same loopback port.
+of the repository. Publish a Docker HTTP port only to host loopback. Browser
+requests with an `Origin` header must use an allowed origin.
 
 ## License
 

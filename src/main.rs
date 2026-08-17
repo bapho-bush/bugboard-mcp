@@ -38,7 +38,6 @@ async fn run_http() -> AppResult {
     let bind = std::env::var("BUGBOARD_MCP_BIND").unwrap_or_else(|_| DEFAULT_HTTP_BIND.to_owned());
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     let addr = listener.local_addr()?;
-    ensure_loopback(&addr)?;
     let config = http_server_config(&addr);
     let service: StreamableHttpService<BugboardServer, LocalSessionManager> =
         StreamableHttpService::new(|| Ok(BugboardServer::new()), Default::default(), config);
@@ -47,17 +46,6 @@ async fn run_http() -> AppResult {
     eprintln!("bugboard-mcp listening on http://{addr}{MCP_HTTP_PATH}");
     axum::serve(listener, router).await?;
     Ok(())
-}
-
-pub(crate) fn ensure_loopback(addr: &std::net::SocketAddr) -> std::io::Result<()> {
-    if addr.ip().is_loopback() {
-        Ok(())
-    } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "BUGBOARD_MCP_BIND must resolve to a loopback address",
-        ))
-    }
 }
 
 pub(crate) fn http_server_config(addr: &std::net::SocketAddr) -> StreamableHttpServerConfig {

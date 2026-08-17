@@ -1,4 +1,4 @@
-FROM rust:1.96-bookworm AS build
+FROM rust:1.96.0-bookworm AS build
 
 WORKDIR /app
 COPY . .
@@ -16,5 +16,7 @@ RUN apt-get update \
 
 COPY --from=build /app/target/release/bugboard-mcp /usr/local/bin/bugboard-mcp
 USER app
+EXPOSE 8000
+ENV BUGBOARD_MCP_TRANSPORT=http
+ENV BUGBOARD_MCP_BIND=0.0.0.0:8000
 ENTRYPOINT ["bugboard-mcp"]
-CMD ["--stdio"]

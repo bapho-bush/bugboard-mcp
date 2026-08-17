@@ -4,7 +4,6 @@ mod tests {
         allowed_hosts,
         client::BugboardClient,
         config::{SessionConfig, parse_env_file},
-        ensure_loopback,
         errors::ToolFailure,
         handles::{HandleKind, HandleStore},
         http_server_config,
@@ -318,12 +317,6 @@ mod tests {
         assert!(!output.to_string().contains("introduced-ref"));
         assert!(!output.to_string().contains("fixed-ref"));
         assert!(!output.to_string().contains("project-ref"));
-    }
-
-    #[test]
-    fn http_bind_rejects_non_loopback_addresses() {
-        assert!(ensure_loopback(&"127.0.0.1:8000".parse().unwrap()).is_ok());
-        assert!(ensure_loopback(&"0.0.0.0:8000".parse().unwrap()).is_err());
     }
 
     #[tokio::test]

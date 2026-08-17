@@ -43,11 +43,11 @@ description = "Run the Streamable HTTP MCP server"
 run = "cargo run -- --http"
 
 [tasks."docker:build"]
-description = "Build the local stdio Docker image"
+description = "Build the local HTTP-first Docker image"
 run = "docker build --tag bugboard-mcp:local ."
 
 [tasks."docker:smoke"]
-description = "Check that the local Docker image starts"
+description = "Check HTTP default and stdio Docker transports"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/docker-smoke.ps1"
 
 [tasks."docker:publish"]
