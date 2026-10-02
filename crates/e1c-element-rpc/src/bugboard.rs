@@ -16,7 +16,9 @@ pub const VERSION_REFERENCE_TYPE: &str = "e1c::bugboard::Багборд::Вер�
 pub const SUBSCRIPTION_MODULE: &str =
     "e1c::bugboard::ПодпискиИГолосования::ПодпискиИГолосованияКлиентСервер";
 pub const BUG_FORM_MODULE: &str = "e1c::bugboard::Основное::ФормаОшибки";
-pub const FULL_TEXT_SEARCH_MODULE: &str = "e1c::bugboard::Основное::ОкноПолнотекстовогоПоиска";
+pub const FULL_TEXT_SEARCH_MODULE: &str = "e1c::bugboard::Компоненты::ПоискДанных::ПоискОшибок";
+const FULL_TEXT_RESULT_TYPE: &str =
+    "e1c::bugboard::Компоненты::ПоискДанных::РезультатГлобальногоПоиска";
 pub const VERSION_MODULE: &str = "e1c::bugboard::Багборд::Версии";
 pub const REMOTE_CALLER_ID: &str = "00000000-0000-0000-0000-000000000000";
 const BUG_VOTE_KIND_TYPE: &str = "e1c::bugboard::ПодпискиИГолосования::ВидГолосаПоОшибке";
@@ -339,12 +341,28 @@ pub fn decode_version_bug_references(value: &Value) -> Result<Vec<String>, Error
 }
 
 pub fn decode_full_text_bug_references(value: &Value) -> Result<Vec<String>, Error> {
-    let (mut references, recognized_shape) = match decode_bug_references(value) {
-        Ok(references) => (references, true),
-        Err(_) => {
-            let mut references = Vec::new();
-            collect_typed_references(value, BUG_REFERENCE_TYPE, &mut references);
-            (references, is_empty_full_text_result(value))
+    let (mut references, recognized_shape) = if value.get("type").and_then(Value::as_str)
+        == Some(FULL_TEXT_RESULT_TYPE)
+    {
+        let found = value
+            .pointer("/value/НайденныеОшибки")
+            .ok_or(Error::UnexpectedResponse(
+                "full-text result is missing НайденныеОшибки",
+            ))?;
+        if found.get("type").and_then(Value::as_str) != Some(BUG_REFERENCE_ARRAY_TYPE) {
+            return Err(Error::UnexpectedResponse(
+                "full-text result contains an unexpected reference array type",
+            ));
+        }
+        (decode_bug_references(found)?, true)
+    } else {
+        match decode_bug_references(value) {
+            Ok(references) => (references, true),
+            Err(_) => {
+                let mut references = Vec::new();
+                collect_typed_references(value, BUG_REFERENCE_TYPE, &mut references);
+                (references, is_empty_full_text_result(value))
+            }
         }
     };
     if references.is_empty() && !recognized_shape {
@@ -1203,6 +1221,73 @@ mod tests {
             Vec::<String>::new()
         );
         assert!(decode_version_bug_references(&json!({"type": "wrong"})).is_err());
+    }
+
+    #[test]
+    fn full_text_request_targets_the_current_search_module() {
+        let request = bug_full_text_search_request("ПоказатьВопрос").unwrap();
+        let body: Value = serde_json::from_str(request.body().unwrap()).unwrap();
+        assert_eq!(
+            body["moduleName"],
+            "e1c::bugboard::Компоненты::ПоискДанных::ПоискОшибок"
+        );
+        assert_eq!(body["methodName"], "ВыполнитьПоискПоОшибкам");
+        assert_eq!(
+            body["parameters"],
+            json!([{"type": "Std::String", "value": "ПоказатьВопрос"}])
+        );
+    }
+
+    #[test]
+    fn full_text_decoder_accepts_current_typed_results_including_empty() {
+        for (items, expected) in [
+            (json!([]), vec![]),
+            (
+                json!([
+                    {"type": BUG_REFERENCE_TYPE, "value": "bug-b"},
+                    {"type": BUG_REFERENCE_TYPE, "value": "bug-a"},
+                    {"type": BUG_REFERENCE_TYPE, "value": "bug-b"}
+                ]),
+                vec!["bug-b", "bug-a"],
+            ),
+        ] {
+            let response = json!({
+                "result": {
+                    "type": "e1c::bugboard::Компоненты::ПоискДанных::РезультатГлобальногоПоиска",
+                    "value": {
+                        "НайденныеОшибки": {"type": BUG_REFERENCE_ARRAY_TYPE, "value": {"items": items}},
+                        "СтрокаПоиска": "ПоказатьВопрос"
+                    }
+                },
+                "debugExitReason": "NONE"
+            });
+            let result = crate::ModuleCallResponse::<Value>::from_slice(
+                serde_json::to_vec(&response).unwrap(),
+            )
+            .unwrap()
+            .into_result()
+            .unwrap();
+            assert_eq!(decode_full_text_bug_references(&result).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn full_text_decoder_rejects_malformed_current_results() {
+        for found in [
+            Value::Null,
+            json!({"type": "wrong", "value": {"items": []}}),
+            json!({"type": BUG_REFERENCE_ARRAY_TYPE, "value": {"items": "invalid"}}),
+            json!({"type": BUG_REFERENCE_ARRAY_TYPE, "value": {"items": [{"type": PROJECT_REFERENCE_TYPE, "value": "project"}]}}),
+            json!({"type": BUG_REFERENCE_ARRAY_TYPE, "value": {"items": [{"type": BUG_REFERENCE_TYPE, "value": " "}]}}),
+        ] {
+            assert!(
+                decode_full_text_bug_references(&json!({
+                    "type": "e1c::bugboard::Компоненты::ПоискДанных::РезультатГлобальногоПоиска",
+                    "value": {"НайденныеОшибки": found}
+                }))
+                .is_err()
+            );
+        }
     }
 
     #[test]
